@@ -19,22 +19,27 @@ char PacketParser::tohexchar(uint8_t val)
     return (val>9)?val+'0'+7:val+'0';
 }
 
-int PacketParser::parse_packet(int input_channel, int output_channel)
+PageState PacketParser::parse_packet(int input_channel, int output_channel)
 {
     uint8_t line[42];
+    char home = 30;
+
     if(read(input_channel, line, sizeof(line))!=sizeof(line))
-      return -1;
+      return PageError;
 
     uint8_t mrag = deham2(line); 
     uint8_t mag = mrag&7;
     uint8_t row = mrag>>3;
+
+    // PageEnd is a special state returned to the outer layer, and not important here
+    if(state == PageEnd) state = Searching;
 
     if(mag==0) mag=8;
 
     if(row > 23)
     {
         // HanByte 12, bit 8 Data addressed to rows 1 to 24 is not to be displayed.dle things like fasttext
-        return 0;
+        return state;
     }
 
     if(row == 0)
@@ -51,21 +56,41 @@ int PacketParser::parse_packet(int input_channel, int output_channel)
         line[4]=tohexchar(tens);
         line[5]=tohexchar(units);
 
-        active = current_page == desired_page;
+        if(current_page == desired_page)
+            state = InPage;
+        else    
+            state = (state == InPage) ? PageEnd : Searching;
     }
 
-    if(!active)
-        return 0;
+    if(state != InPage)
+        return state;
 
     if(mag != (current_page/100))
-        return 0;
+        return state;
 
     // Strip parity
     for(int i=2; i<sizeof(line); i++)
         line[i] &= 0x7f;
 
-    debug("%d: %-40.40s\n", row, line+2);
-    return 0;
+    if(row == 0)
+        write(output_channel, &home, 1);
+    for(int n=2; n<42; n++)
+    {
+        char c[2];
+        c[0] = line[n];
+        if(c[0] < 32)
+        {
+            c[1] = c[0] + 0x40;
+            c[0] = 27;
+            if(write(output_channel, c, 2) != 2)
+                return PageError;
+        }
+        else    
+            if(write(output_channel, c, 1) != 1)
+                return PageError;
+    }
+ 
+    return state;
 }
 
 void PacketParser::set_page(int page)
