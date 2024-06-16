@@ -3,22 +3,26 @@
 
 #include <stdint.h>
 
-enum PageState { Searching, InPage, PageEnd, PageError };
+enum PageState { Searching, InPage, PageEnd, Idle, PageError };
 
 class PacketParser
 {
 private:   
-    int8_t current_page;
-    int8_t desired_page;
+    int current_page;
+    int desired_page;
     PageState state;
+    int page_char_index;
+    char page_char[3];
 
     uint8_t deham(uint8_t value);
     uint8_t deham2(uint8_t *values);
     char tohexchar(uint8_t val);
+    int write_line(int output_channel, const uint8_t *line);
 
 public:
     void set_page(int page);
     PageState parse_packet(int input_channel, int output_channel);
+    void key_pressed(char key);
 };
 
 #endif

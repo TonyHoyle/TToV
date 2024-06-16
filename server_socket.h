@@ -12,6 +12,7 @@ private:
 public:
     int listen(int port, bool v4, bool v6);
     int accept();
+    int read(int fd, uint8_t *buf, int size);
 };
 
 #endif

@@ -86,3 +86,20 @@ int ServerSocket::accept()
     
     return -1; // Can't really get here, I think
 }
+
+int ServerSocket::read(int fd, uint8_t *buf, int size)
+{
+    fd_set fds;
+    timeval tv = {0};
+    int ret;
+
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+
+    tv.tv_sec = 0;
+    tv.tv_usec = 1;
+    if((ret = (select(fd+1, &fds, NULL, NULL, &tv))) != 1)
+        return ret;
+
+    return ::read(fd, buf, size);
+}
