@@ -3,13 +3,14 @@
 
 #include <stdint.h>
 
-enum PageState { Searching, InPage, PageEnd, Idle, PageError };
+enum PageState { Searching, InPage, PageEnd, PageError };
 
 class PacketParser
 {
 private:   
     int current_page;
     int desired_page;
+    int current_row;
     PageState state;
     int page_char_index;
     char page_char[3];
