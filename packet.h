@@ -15,10 +15,12 @@ private:
     int page_char_index;
     char page_char[3];
     uint8_t static_line[42];
+    int fastext_page[4];
 
     uint8_t deham(uint8_t value);
     uint8_t deham2(uint8_t *values);
     char tohexchar(uint8_t val);
+    int decode_page(uint8_t mag, uint8_t *data);
     int write_line(int output_channel, const uint8_t *line);
 
 public:

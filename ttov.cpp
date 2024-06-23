@@ -89,15 +89,12 @@ int main(int argc, char *argv[])
             {
                 uint8_t c;
 
-                for(;;)
-                {
-                    while(parser->parse_packet(input_fd, s) != PageError)
-                        if(socket->read(s, &c, 1) == 1)
-                            parser->key_pressed(c);
-                    lseek(input_fd, 0, 0);
-                }
-            }
+                parser->set_page(page);
 
+                while(parser->parse_packet(input_fd, s) != PageError)
+                    if(socket->read(s, &c, 1) == 1)
+                        parser->key_pressed(c);
+            }
         }
     }
     else
