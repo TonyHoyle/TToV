@@ -14,6 +14,7 @@ private:
     PageState state;
     int page_char_index;
     char page_char[3];
+    uint8_t static_line[42];
 
     uint8_t deham(uint8_t value);
     uint8_t deham2(uint8_t *values);

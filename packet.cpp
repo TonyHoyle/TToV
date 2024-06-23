@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
 #include "packet.h"
 #include "debug.h"
 
@@ -25,8 +26,12 @@ PageState PacketParser::parse_packet(int input_channel, int output_channel)
     const char home = 30;
     const char clear = 12;
 
-    if(read(input_channel, line, sizeof(line))!=sizeof(line))
-      return PageError;
+    for(int l=0,r; l<sizeof(line); l+=r)
+    {
+        r = read(input_channel, line+l, sizeof(line)-l);
+        if(r<=0)
+            return PageError;
+    }
 
     uint8_t mrag = deham2(line); 
     uint8_t mag = mrag&7;
@@ -35,24 +40,37 @@ PageState PacketParser::parse_packet(int input_channel, int output_channel)
     if(mag==0) mag=8;
 
     if(row > 23)
-    {
-        // HanByte 12, bit 8 Data addressed to rows 1 to 24 is not to be displayed.dle things like fasttext
+    {   
+        // Byte 12, bit 8 Data addressed to rows 1 to 24 is not to be displayed.
+        // Handle things like fasttext
         return state;
     }
 
     if(state == PageEnd)
     {
+        bool draw = false;
         if(page_char_index > 0)
         {
-            memset(line+6, 32, 4);
-            line[2]='P';
-            line[3]=page_char[0];
-            line[4]=page_char[1];
-            line[5]=page_char[2];
-            write(output_channel, &home, 1);
-            write(output_channel, line+2, 4);
+            memset(static_line+6, 32, 4);
+            static_line[2]='P';
+            static_line[3]=page_char[0];
+            static_line[4]=page_char[1];
+            static_line[5]=page_char[2];
+            draw = true;
         }
-        return state; // FIXME: Update time
+        if((row==0) && (memcmp(line+32, static_line+32, 10) != 0))
+        {
+            memcpy(static_line+32, line+32, 10); // time
+            draw = true;
+        }
+        if(draw)
+        {
+            write(output_channel, &home, 1);
+            if(write_line(output_channel, static_line+2))
+                return PageError;
+        }
+
+        return state;
     }
 
     if(row == 0)
@@ -68,6 +86,9 @@ PageState PacketParser::parse_packet(int input_channel, int output_channel)
 
         int units = deham(line[2]);
         int tens = deham(line[3]);
+
+        if(units > 9 || tens > 9)
+            return state;
 
         memset(line+6, 32, 4);
         line[2]='P';
@@ -91,13 +112,13 @@ PageState PacketParser::parse_packet(int input_channel, int output_channel)
             state = InPage;
             current_row = -1;
             write(output_channel, &clear, 1);
+            memcpy(static_line, line, sizeof(line));
         }
         else 
         {
             write(output_channel, &home, 1);
             if(write_line(output_channel, line+2))
                 return PageError;
-
         }
     }
 
