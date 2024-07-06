@@ -9,6 +9,7 @@
 #include "packet.h"
 #include "server_socket.h"
 #include "debug.h"
+#include "services.h"
 
 int main(int argc, char *argv[])
 {
@@ -17,12 +18,15 @@ int main(int argc, char *argv[])
     const char *source = NULL;
     int input_fd = 0;
     int listen_port = -1;
-    bool v6 = true, v4 = true;
+    bool v6 = true, v4 = true, service = false;
 
-    while ((opt = getopt(argc, argv, "64l:i:p:")) != -1)
+    while ((opt = getopt(argc, argv, "s64l:i:p:")) != -1)
     {
         switch (opt) 
         {
+            case 's':
+                service = true;
+                break;
             case 'i':
                 source = optarg;
                 break;
@@ -39,10 +43,34 @@ int main(int argc, char *argv[])
                 v6 = false;
                 break;
             default: /* '?' */
-                fprintf(stderr, "Usage: %s [-i file] [-p page] [-l port] [-6] [-4]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-s] [-i file] [-p page] [-l port] [-6] [-4]\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
-    }    
+    }   
+
+    if(service)
+    {
+        ServicesFile serviceFile;
+        if(!serviceFile.read_services("known_services.json"))
+        {
+            fprintf(stderr, "Couldn't read service file\n");
+            exit(EXIT_FAILURE);
+        }
+
+        for(auto i = serviceFile.services().begin(); i != serviceFile.services().end(); i++)
+        {
+            debug("%s\n",i->name.c_str());
+            for(auto j = i->services.begin(); j != i->services.end(); j++)
+            {
+                debug("  %s\n",j->name.c_str());
+                for(auto k = j->services.begin(); k != j->services.end(); k++)
+                {
+                    debug("    %s\n",k->name.c_str());
+                }
+            }
+        }
+        exit(EXIT_SUCCESS);
+    } 
 
     if(source)
     {
